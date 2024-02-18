@@ -8,13 +8,22 @@ assignees: ''
 ---
 
 ## 어떤 기능인가요?
-
 > 추가하려는 기능에 대해 간결하게 설명해주세요
 
-## 작업 상세 내용
+## ✅ Task List
 
-- [ ] TODO
-- [ ] TODO
-- [ ] TODO
+- [ ] TASK 1
+- [ ] TASK 2
+- [ ] TASK 3
 
-## 참고할만한 자료(선택)
+---
+
+### 💡 고려사항
+
+- ooo
+
+<br>
+
+> #### Reference
+> NULL
+> - [title](link)
