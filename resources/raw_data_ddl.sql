@@ -1,5 +1,6 @@
-/*psql 접속 후 절차
-1. 데이터베이스 생성 및 접속 전환*/
+/* psql 접속 후 절차
+
+1. 데이터베이스 생성 및 접속 전환 */
 CREATE DATABASE raw_data;
 /*  psql 명령 정리
 접속한 데이터베이스 전환: \c raw_data
@@ -45,7 +46,7 @@ CREATE TABLE IF NOT EXISTS product (
     id SERIAL PRIMARY KEY,
     ingredient_id INTEGER NOT NULL,
     name VARCHAR(1024) NOT NULL,
-    date DATE, /*created_at, updated_at으로 충분치 않을까 염려해서 생성한 칼럼*/
+    date DATE, /*created_at, updated_at으로 불충분할 걸 염려해서 생성한 칼럼*/
     unit_price FLOAT,
     url VARCHAR(2048),
     img_src VARCHAR(2048),
