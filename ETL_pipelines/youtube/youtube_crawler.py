@@ -25,9 +25,9 @@ class YoutubeCrawler:
     def quit_webdriver(self):
         self.driver.quit()
         
-    def set_youtube_api(self):
+    def set_youtube_api(self, n):
         load_dotenv('../../resource/secret.env')
-        self.GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY1')
+        self.GOOGLE_API_KEY = os.getenv(f'GOOGLE_API_KEY{n}')
         
         os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1" # 보안 통신(SSL/TLS)을 사용하지 않고 HTTP를 통해 OAuth 인증을 수행.
         self.youtube = googleapiclient.discovery.build(
@@ -129,39 +129,40 @@ if __name__ == "__main__":
     
     youtubeCrawler = YoutubeCrawler()
     youtubeCrawler.set_webdriver()
-    youtubeCrawler.set_youtube_api()
     youtubeCrawler.set_gemini_api()
     
     cook_name_file_path = "cook_basic.csv"
     cook_name_list = youtubeCrawler.get_cook_name_list(cook_name_file_path)
     
-    column_list = ['cook_name', 'video_id', 'video_title', 'video_thumbnail', 'video_thumbsup_count', 'video_views_count', 'video_uploaded_date', 'video_text', 'channel_id', 'channel_name', 'channel_img']
+    column_list = ['cook_name', 'video_id', 'video_title', 'video_thumbnail', 'video_thumbsup_count', 'video_views_count', 'video_uploaded_date', 'video_text', 'channel_id', 'channel_name', 'channel_img', 'subsribers_count']
     row_list = []
     
-    for i in range(len(cook_name_list)):
-        print('*'*80)
-        print('cook_name_list index:', i)
-        cook_name = cook_name_list[i]
-        try:
-            video_url_list = youtubeCrawler.search_cook_name(cook_name)
-        except:
-            break
-        for j in range(len(video_url_list)):
-            print('video_url_list index:', j)
-            video_url = video_url_list[j]
+    for n in range(5):
+        youtubeCrawler.set_youtube_api(n)
+        for i in range(n*100, len(cook_name_list)):
+            print('*'*80)
+            print('cook_name_list index:', i)
+            cook_name = cook_name_list[i]
             try:
-                (thumbnail, title, channel_img, channel_name, channel_id, subscribers_count, thumbsup_count, views_count, uploaded_date, text) = youtubeCrawler.get_video_infos(video_url)
+                video_url_list = youtubeCrawler.search_cook_name(cook_name)
             except:
-                youtubeCrawler.set_webdriver()
-                continue
-            time.sleep(0.01)
-            row = [cook_name, video_url, title, thumbnail, thumbsup_count, views_count, uploaded_date, text, channel_id, channel_name, channel_img]
-            row_list.append(row)
+                break
+            for j in range(len(video_url_list)):
+                print('video_url_list index:', j)
+                video_url = video_url_list[j]
+                try:
+                    (thumbnail, title, channel_img, channel_name, channel_id, subscribers_count, thumbsup_count, views_count, uploaded_date, text) = youtubeCrawler.get_video_infos(video_url)
+                except:
+                    youtubeCrawler.set_webdriver()
+                    continue
+                time.sleep(0.01)
+                row = [cook_name, video_url, title, thumbnail, thumbsup_count, views_count, uploaded_date, text, channel_id, channel_name, channel_img, subscribers_count]
+                row_list.append(row)
     
     df = pd.DataFrame(row_list, columns=column_list)
 
     # CSV 파일 이름 설정
-    csv_filename = f'youtube_raw_dataset_{datetime.now().strftime("%Y-%m-%d-%H-%M")}.csv'
+    csv_filename = f'../output_files/youtube_raw_dataset_{datetime.now().strftime("%Y-%m-%d-%H-%M")}.csv'
 
     # DataFrame을 CSV 파일로 저장
     df.to_csv(csv_filename, index=False)
