@@ -1,6 +1,5 @@
-/* psql 접속 후 절차
-
-1. 데이터베이스 생성 및 접속 전환 */
+/*psql 접속 후 절차
+1. 데이터베이스 생성 및 접속 전환*/
 CREATE DATABASE raw_data;
 /*  psql 명령 정리
 접속한 데이터베이스 전환: \c raw_data
@@ -46,7 +45,7 @@ CREATE TABLE IF NOT EXISTS product (
     id SERIAL PRIMARY KEY,
     ingredient_id INTEGER NOT NULL,
     name VARCHAR(1024) NOT NULL,
-    date DATE, /*created_at, updated_at으로 불충분할 걸 염려해서 생성한 칼럼*/
+    date DATE, /*created_at, updated_at으로 충분치 않을까 염려해서 생성한 칼럼*/
     unit_price FLOAT,
     url VARCHAR(2048),
     img_src VARCHAR(2048),
@@ -101,3 +100,22 @@ ALTER TABLE recipe ALTER COLUMN youtube_video_id SET NOT NULL;
 
 ALTER TABLE youtube_video ADD CONSTRAINT youtube_to_recipe FOREIGN KEY (recipe_id) REFERENCES recipe (id);
 ALTER TABLE youtube_video ALTER COLUMN recipe_id SET NOT NULL;
+
+/* 변경한 내용 */
+ALTER TABLE youtube_video DROP column channel_id;
+DROP TABLE channel;
+
+CREATE TABLE IF NOT EXISTS channel (
+    id SERIAL,
+    link VARCHAR(512) PRIMARY KEY,
+    name VARCHAR(1024),
+    subscribers_count BIGINT,
+    img_src VARCHAR(2048),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP);
+
+ALTER TABLE youtube_video
+ADD COLUMN channel_link VARCHAR(255),
+ADD CONSTRAINT fk_channel_link
+FOREIGN KEY (channel_link) REFERENCES channel(link);
