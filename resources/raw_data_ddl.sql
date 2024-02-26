@@ -10,8 +10,8 @@ CREATE DATABASE raw_data;
 service db schema에서 NOT NULL, UNIQUE 등의 조건 많이 추가*/
 CREATE TABLE IF NOT EXISTS channel (
     id SERIAL PRIMARY KEY,
-    owner_id BIGINT,
     name VARCHAR(1024),
+    url VARCHAR(1024),
     subscribers_count BIGINT,
     img_src VARCHAR(2048),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -100,22 +100,3 @@ ALTER TABLE recipe ALTER COLUMN youtube_video_id SET NOT NULL;
 
 ALTER TABLE youtube_video ADD CONSTRAINT youtube_to_recipe FOREIGN KEY (recipe_id) REFERENCES recipe (id);
 ALTER TABLE youtube_video ALTER COLUMN recipe_id SET NOT NULL;
-
-/* 변경한 내용 */
-ALTER TABLE youtube_video DROP column channel_id;
-DROP TABLE channel;
-
-CREATE TABLE IF NOT EXISTS channel (
-    id SERIAL,
-    link VARCHAR(512) PRIMARY KEY,
-    name VARCHAR(1024),
-    subscribers_count BIGINT,
-    img_src VARCHAR(2048),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP);
-
-ALTER TABLE youtube_video
-ADD COLUMN channel_link VARCHAR(255),
-ADD CONSTRAINT fk_channel_link
-FOREIGN KEY (channel_link) REFERENCES channel(link);
