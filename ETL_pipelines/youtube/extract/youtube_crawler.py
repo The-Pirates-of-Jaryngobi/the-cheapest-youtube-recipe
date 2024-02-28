@@ -6,8 +6,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 import os
-import pandas as pd
 from dotenv import load_dotenv
+import psycopg2
 
 
 class YoutubeCrawler:
@@ -30,32 +30,28 @@ class YoutubeCrawler:
         self.youtube = googleapiclient.discovery.build(
             'youtube', 'v3', developerKey=self.GOOGLE_API_KEY)
     
-    def get_cook_name_list(self, file_path):
+    def get_menu_id_and_name_list(self, cursor):
         try:
-            print(f"{file_path}에서 요리명 정보를 읽습니다.")
-            
-            df = pd.read_csv(file_path)
-            cook_name_list = df["식품명"].tolist()
-            
-            print(f"총 요리 수: {len(cook_name_list)}")
-            
-            return cook_name_list
-            
-        except Exception as e:
-            print(f"에러 발생 >> {e}")
+            # Execute query to select all names and ids from the menu table
+            cursor.execute("SELECT id, name FROM menu ORDER BY 1 LIMIT 808") # 상위 808개의 레시피 추출.
+            menu_infos = self.cursor.fetchall()
+            return menu_infos
+        except (Exception, psycopg2.Error) as error:
+            print("Error while reading menu info:", error)
+            return []
 
-    def search_cook_name(self, cook_name):
+    def search_menu_name(self, menu_name):
         try:
             print("Youtube Data API를 호출합니다.")
     
             request = self.youtube.search().list(
                 part="id",
                 maxResults=10,
-                q=cook_name + " 레시피"
+                q=menu_name + " 레시피"
             )
             response = request.execute()
             
-            print(f"<{cook_name} 레시피에 대한 검색 완료>")
+            print(f"<{menu_name} 레시피에 대한 검색 완료>")
             video_url_list = []
             for item in response["items"]:
                 youtube_video_id = item["id"]["videoId"]

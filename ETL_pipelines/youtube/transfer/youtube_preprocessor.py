@@ -121,9 +121,9 @@ class YoutubePreprocessor:
                 
                 text_lines = gemini_output.split('\n')
                 for text_line in text_lines:
-                    ingredient_name, ingredient_volume = self.split_text(text_line)
-                    if ingredient_name and '재료' not in ingredient_name:
-                        ingredient_and_amount_list.append([ingredient_name, ingredient_volume])
+                    ingredient_name, ingredient_amount = self.split_text(text_line)
+                    if ingredient_name and '재료' not in ingredient_name and len(ingredient_name) < 128 and len(ingredient_amount) < 128:
+                        ingredient_and_amount_list.append([ingredient_name, ingredient_amount])
                 
                 return ingredient_and_amount_list
                 
