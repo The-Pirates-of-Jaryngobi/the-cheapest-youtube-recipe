@@ -100,3 +100,10 @@ ALTER TABLE recipe ALTER COLUMN youtube_video_id SET NOT NULL;
 
 ALTER TABLE youtube_video ADD CONSTRAINT youtube_to_recipe FOREIGN KEY (recipe_id) REFERENCES recipe (id);
 ALTER TABLE youtube_video ALTER COLUMN recipe_id SET NOT NULL;
+
+DROP TABLE unit_conversion;
+CREATE TABLE IF NOT EXISTS unit_conversion (
+    conversion_id SERIAL PRIMARY KEY,
+    ingredient_name VARCHAR(128),
+    unit_name VARCHAR(64),
+    converted_vol FLOAT);
