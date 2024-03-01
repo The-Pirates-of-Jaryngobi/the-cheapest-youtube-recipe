@@ -4,39 +4,46 @@ from airflow.decorators import task
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 from datetime import timedelta, datetime
-
 import requests
 import csv
 import boto3
 import os
 import psycopg2
+import logging
 
+# 상품명을 기반으로 쿠팡에서 상품 검색 요청을 보내는 함수
+def ingredientNameRequests(ingredient_name):
+    logger = logging.getLogger('ingredientNameRequests')
+    # logger.setLevel(logging.INFO)
+    
+    encoded_string = quote(ingredient_name, encoding='utf-8')
+    logger.info(f"Ingredient Name: {ingredient_name}, Encoded String: {encoded_string}")
 
-def ingredientNameRequests(product_name):
-    encoded_string = quote(product_name, encoding='utf-8')
-    print(product_name, encoded_string)
     url = f"https://www.coupang.com/np/search?component=&q={encoded_string}&channel=user"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
-               "Accept-Language": "ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
+        "Accept-Language": "ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3"
+    }
 
     try:
         response = requests.get(url, headers=headers)
-    except:
+    except Exception as e:
+        logger.error(f"Error occurred while making a request of ingredient_name: {e}")
         response = None
 
     return response
 
-
+# 쿠팡에서 받은 응답을 파싱하여 상품 세부 정보를 추출하는 함수
 def ingredientsDetailResult(response, ingredient_name, ingredient_result):
+    logger = logging.getLogger('ingredientsDetailResult')
     try:
         bsObj = BeautifulSoup(response.content, "html.parser")
-        ul = bsObj.find("ul", id="productList")  # 아이템 리스트부분 추출
-        lis = ul.find_all("li")  # 각 아이템 추출
-    except:
-        print('검색안됨')
+        ul = bsObj.find("ul", id="productList") 
+        lis = ul.find_all("li") 
+    except Exception as e:
+        logger.error('Failed to search ingredient_name on coupang')
         return ingredient_result
 
-    # baseurl = 'https://www.coupang.com'
     rank_number = 10
     rank_number_list = [i for i in range(1, rank_number+1)]
     rank_class_name = None
@@ -51,106 +58,52 @@ def ingredientsDetailResult(response, ingredient_name, ingredient_result):
         if li.find('span', class_=rank_class_name) != None:
             ingredient_detail.append(ingredient_name)
 
-            if li.find('span', class_=rank_class_name):
-                rank = int(li.find('span', class_=rank_class_name).text)
-                ingredient_detail.append(rank)
-            else:
-                rank = None
-                ingredient_detail.append(rank)
+            rank = int(li.find('span', class_=rank_class_name).text)
+            ingredient_detail.append(rank)
 
             current_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             ingredient_detail.append(current_time)
 
-            if li.find('div', class_='name') != None:
-                product_title = li.find('div', class_='name').text
-                ingredient_detail.append(product_title)
-            else:
-                product_title = None
-                ingredient_detail.append(product_title)
+            product_title = li.find('div', class_='name').text if li.find('div', class_='name') else None
+            ingredient_detail.append(product_title)
 
-            if li.find('del', class_='base-price') != None:
-                origial_price = int(
-                    li.find('del', class_='base-price').text.replace(',', ''))
-                ingredient_detail.append(origial_price)
-            else:
-                origial_price = None
-                ingredient_detail.append(origial_price)
+            origial_price = int(li.find('del', class_='base-price').text.replace(',', '')) if li.find('del', class_='base-price') else None
+            ingredient_detail.append(origial_price)
 
-            if li.find('strong', class_='price-value') != None:
-                price = int(
-                    li.find('strong', class_='price-value').text.replace(',', ''))
-                ingredient_detail.append(price)
-            else:
-                price = None
-                ingredient_detail.append(price)
+            price = int(li.find('strong', class_='price-value').text.replace(',', '')) if li.find('strong', class_='price-value') else None
+            ingredient_detail.append(price)
 
-            if li.find('span', class_='unit-price') != None:
-                unit_price = li.find('span', class_='unit-price').contents
-                unit_price_str = ''
-                for item in unit_price:
-                    # 만약 현재 요소가 문자열이라면 출력합니다.
-                    if isinstance(item, str):
-                        unit_price_str += item
-                    # 만약 현재 요소가 <em> 태그라면 그 안에 있는 텍스트를 출력합니다.
-                    elif item.name == 'em':
-                        unit_price_str += item.text
-                ingredient_detail.append(unit_price_str.replace(
-                    ' ', '').replace(',', '')[1:-1])
-            else:
-                unit_price = None
-                ingredient_detail.append(unit_price)
+            unit_price = li.find('span', class_='unit-price').text.replace(' ', '').replace(',', '')[1:-1] if li.find('span', class_='unit-price') else None
+            ingredient_detail.append(unit_price)
 
-            if li.find('span', class_='instant-discount-rate') != None:
-                discount_rate = li.find(
-                    'span', class_='instant-discount-rate').text
-                ingredient_detail.append(discount_rate)
-            else:
-                discount_rate = None
-                ingredient_detail.append(discount_rate)
+            discount_rate = li.find('span', class_='instant-discount-rate').text if li.find('span', class_='instant-discount-rate') else None
+            ingredient_detail.append(discount_rate)
 
-            if li.find('span', class_='badge rocket') != None:
-                badage_rocket = '로켓배송'
-                ingredient_detail.append(badage_rocket)
-            else:
-                badage_rocket = None
-                ingredient_detail.append(badage_rocket)
+            badage_rocket = '로켓배송' if li.find('span', class_='badge rocket') else None
+            ingredient_detail.append(badage_rocket)
 
-            if li.find('span', class_='rating-total-count') != None:
-                review_count = int(
-                    li.find('span', class_='rating-total-count').text[1:-1])
-                ingredient_detail.append(review_count)
-            else:
-                review_count = None
-                ingredient_detail.append(review_count)
-                
-            if li.find('a', href=True)['href'] != None:
-                url = 'https://www.coupang.com'+li.find('a', href=True)['href']
-                ingredient_detail.append(url)
-            else:
-                url = None
-                ingredient_detail.append(url)
+            review_count = int(li.find('span', class_='rating-total-count').text[1:-1]) if li.find('span', class_='rating-total-count') else None
+            ingredient_detail.append(review_count)
 
-            if li.find('img', class_='search-product-wrap-img')['src']:
-                image = 'https:' + \
-                    li.find('img', class_='search-product-wrap-img')['src']
-                ingredient_detail.append(image)
-            else:
-                image = None
-                ingredient_detail.append(image)
-                
+            url = 'https://www.coupang.com'+li.find('a', href=True)['href'] if li.find('a', href=True) else None
+            ingredient_detail.append(url)
+
+            image = 'https:' + li.find('img', class_='search-product-wrap-img')['src'] if li.find('img', class_='search-product-wrap-img') else None
+            ingredient_detail.append(image)
+
             ingredient_result.append(ingredient_detail)
             rank_class_name = None
-            print(ingredient_detail)
+
+            logger.info(f"Ingredient Detail: {ingredient_detail}")
 
             if len(rank_number_list) == 0:
                 return ingredient_result
 
     return ingredient_result
 
-
+# Airflow DAG 태스크: DB에서 상품명을 가져오는 함수
 @task
 def import_ingredient_name_table():
-    # PostgreSQL 연결
     conn = psycopg2.connect(
         dbname=Variable.get('dbname'),
         user=Variable.get('user'),
@@ -160,7 +113,7 @@ def import_ingredient_name_table():
     )
 
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM ingredient_name_test")
+    cursor.execute("SELECT * FROM ingredient")
     table = cursor.fetchall()
     conn.close()
 
@@ -168,14 +121,15 @@ def import_ingredient_name_table():
     ingredient_name_list = []
 
     for row in youtube_dataset:
-        ingredient_name_list.append(row[2])
+        ingredient_name_list.append(row[1])
 
     ingredient_name_list = set(ingredient_name_list)
     ingredient_name_list = list(ingredient_name_list)
+    ingredient_name_list.sort()
 
     return ingredient_name_list
 
-
+# Airflow DAG 태스크: CSV 파일에서 상품명을 가져오는 함수
 @task
 def import_csv():
     dag_folder = os.path.dirname(os.path.realpath(__file__))
@@ -183,7 +137,6 @@ def import_csv():
         dag_folder, 'youtube_preprocessed_dataset_2024-02-23-15-56.csv')
     ingredient_name_list = []
     with open(file_path, 'r', encoding='utf-8') as file:
-        # 파일을 열고 각 행을 리스트로 변환하여 데이터에 저장
         youtube_dataset = [line.strip().split(',')
                            for line in file.readlines()]
         ingredient_name_list = []
@@ -193,16 +146,15 @@ def import_csv():
 
         ingredient_name_list = set(ingredient_name_list)
         ingredient_name_list = list(ingredient_name_list)
-        # print(ingredient_name_list)
-        # print(len(ingredient_name_list))
+        ingredient_name_list.sort()
+        
     return ingredient_name_list
 
-
+# Airflow DAG 태스크: 상품명을 기반으로 상품 정보를 추출 및 변환하는 함수
 @task
 def extract_and_transform(ingredient_name_list):
-    ingredient_result = [['ingredient_name', 'rank', 'time_stamp', 'product_title', 'origial_price', 'price', 'unit_price', 'discount_rate', 'badage_rocket', 'review_count', 'url','image']]
-    #ingredient_name_list = ["케챱", "고구마", '가지', '딸기', '바나나']
-
+    ingredient_result = [['ingredient_name', 'rank', 'time_stamp', 'product_title', 'origial_price',
+                          'price', 'unit_price', 'discount_rate', 'badage_rocket', 'review_count', 'url', 'image']]
     while len(ingredient_name_list) != 0:
         ingredient_name = ingredient_name_list.pop(0)
         ingredient_response = ingredientNameRequests(ingredient_name)
@@ -210,7 +162,7 @@ def extract_and_transform(ingredient_name_list):
             ingredient_response, ingredient_name, ingredient_result)
     return ingredient_result
 
-
+# Airflow DAG 태스크: 추출 및 변환된 상품 정보를 CSV 파일에 쓰는 함수
 @task
 def write_to_csv(ingredient_result):
     current_time = datetime.utcnow()
@@ -218,12 +170,14 @@ def write_to_csv(ingredient_result):
     with open(file_name, 'w', newline='') as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerows(ingredient_result)
-
     return file_name
 
-
+# Airflow DAG 태스크: CSV 파일을 S3에 업로드하는 함수
 @task
-def load_to_s3(aws_access_key_id, aws_secret_access_key, file_name):
+def load_to_s3(file_name):
+    aws_access_key_id = Variable.get('aws_access_key_id')
+    aws_secret_access_key = Variable.get('aws_secret_access_key')
+
     s3 = boto3.client('s3', aws_access_key_id=aws_access_key_id,
                       aws_secret_access_key=aws_secret_access_key)
 
@@ -233,7 +187,7 @@ def load_to_s3(aws_access_key_id, aws_secret_access_key, file_name):
     s3_file_key = s3_folder_key + local_file_path
     s3.upload_file(local_file_path, bucket_name, s3_file_key)
 
-
+# Airflow DAG 태스크: RDS에 상품 정보를 로드하는 함수
 @task
 def load_to_rds(ingredient_result):
     conn = psycopg2.connect(
@@ -262,7 +216,7 @@ def load_to_rds(ingredient_result):
         image varchar(255)
     )
     """
-    
+
     insert_query = """
     INSERT INTO product (
         ingredient_name,
@@ -278,23 +232,14 @@ def load_to_rds(ingredient_result):
         url,
         image
     ) 
-    VALUES (%s, %s, %s, %s, %s, %s, %s,%s, %s, %s,%s, %s)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
     try:
-        # 커서 생성
         cur = conn.cursor()
-
-        # 테이블 생성 또는 대체
         cur.execute(drop_create_table_query)
-
-        # 데이터 삽입
         cur.executemany(insert_query, ingredient_result[1:])
-
-        # 커밋
         conn.commit()
-
-        # 커서 및 연결 닫기
         cur.close()
         conn.close()
         print("Table created or replaced and data inserted successfully!")
@@ -305,20 +250,17 @@ def load_to_rds(ingredient_result):
 
 with DAG(
     dag_id='coupang_crawling',
-    start_date=datetime(2023, 12, 1),
-    schedule='0 2 * * *',
+    start_date=datetime(2024, 3, 1),
+    schedule='10 5 * * *',
     catchup=False,
     default_args={
-        'retries': 1,
-        'retry_delay': timedelta(minutes=0),
+        'retries': 3,
+        'retry_delay': timedelta(minutes=1),
     }
 ) as dag:
-
-    aws_access_key_id = Variable.get('aws_access_key_id')
-    aws_secret_access_key = Variable.get('aws_secret_access_key')
 
     ingredient_name_list = import_ingredient_name_table()
     ingredient_result = extract_and_transform(ingredient_name_list)
     file_name = write_to_csv(ingredient_result)
-    load_to_s3(aws_access_key_id, aws_secret_access_key, file_name)
+    load_to_s3(file_name)
     load_to_rds(ingredient_result)
