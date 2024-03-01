@@ -128,6 +128,9 @@ class YoutubePreprocessor:
 
         return has_digit and has_english
 
+    def convert_to_only_korean(self, text):
+        return re.sub('[^ㄱ-ㅎㅏ-ㅣ가-힣]', '', text)
+    
     def convert_to_ingredient_and_amount(self, video_text):
         try:
             if self.is_recipe(video_text):
@@ -142,6 +145,7 @@ class YoutubePreprocessor:
                     ingredient_name, ingredient_amount = self.split_text(text_line)
                     if ingredient_name and '재료' not in ingredient_name and len(ingredient_name) < 128 and len(ingredient_amount) < 128:
                         if self.contains_korean_and_digit(ingredient_amount) or self.contains_english_and_digit(ingredient_amount):
+                            ingredient_name = self.convert_to_only_korean(ingredient_name)
                             ingredient_and_amount_list.append([ingredient_name, ingredient_amount])
                 
                 return ingredient_and_amount_list
