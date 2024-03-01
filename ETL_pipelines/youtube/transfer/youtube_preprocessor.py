@@ -109,6 +109,24 @@ class YoutubePreprocessor:
             if len(result) == 2:
                 return result[0].strip(), result[1].strip()
         return None, None
+    
+    def contains_korean_and_digit(self, text):
+        korean_pattern = re.compile('[ㄱ-ㅎㅏ-ㅣ가-힣]')
+        digit_pattern = re.compile('[0-9]')
+
+        has_korean = korean_pattern.search(text) is not None
+        has_digit = digit_pattern.search(text) is not None
+
+        return has_korean and has_digit
+
+    def contains_english_and_digit(self, text):
+        digit_pattern = re.compile('[0-9]')
+        english_pattern = re.compile('[a-zA-Z]')
+
+        has_digit = digit_pattern.search(text) is not None
+        has_english = english_pattern.search(text) is not None
+
+        return has_digit and has_english
 
     def convert_to_ingredient_and_amount(self, video_text):
         try:
@@ -123,7 +141,8 @@ class YoutubePreprocessor:
                 for text_line in text_lines:
                     ingredient_name, ingredient_amount = self.split_text(text_line)
                     if ingredient_name and '재료' not in ingredient_name and len(ingredient_name) < 128 and len(ingredient_amount) < 128:
-                        ingredient_and_amount_list.append([ingredient_name, ingredient_amount])
+                        if self.contains_korean_and_digit(ingredient_amount) or self.contains_english_and_digit(ingredient_amount):
+                            ingredient_and_amount_list.append([ingredient_name, ingredient_amount])
                 
                 return ingredient_and_amount_list
                 
