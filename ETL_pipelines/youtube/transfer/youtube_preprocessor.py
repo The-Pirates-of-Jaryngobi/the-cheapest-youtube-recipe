@@ -131,6 +131,13 @@ class YoutubePreprocessor:
     def convert_to_only_korean(self, text):
         return re.sub('[^ㄱ-ㅎㅏ-ㅣ가-힣]', '', text)
     
+    def is_ingredient_and_amount(self, ingredient_name, ingredient_amount):
+        if ingredient_name and ingredient_amount and type(ingredient_name) == type('str') and type(ingredient_amount) == type('str'):
+            if ingredient_name and '재료' not in ingredient_name and len(ingredient_name) < 128 and len(ingredient_amount) < 128:
+                if self.contains_korean_and_digit(ingredient_amount) or self.contains_english_and_digit(ingredient_amount):
+                    return True
+        return False
+                    
     def convert_to_ingredient_and_amount(self, video_text):
         try:
             if self.is_recipe(video_text):
@@ -143,10 +150,9 @@ class YoutubePreprocessor:
                 text_lines = gemini_output.split('\n')
                 for text_line in text_lines:
                     ingredient_name, ingredient_amount = self.split_text(text_line)
-                    if ingredient_name and '재료' not in ingredient_name and len(ingredient_name) < 128 and len(ingredient_amount) < 128:
-                        if self.contains_korean_and_digit(ingredient_amount) or self.contains_english_and_digit(ingredient_amount):
-                            ingredient_name = self.convert_to_only_korean(ingredient_name)
-                            ingredient_and_amount_list.append([ingredient_name, ingredient_amount])
+                    if self.is_ingredient_and_amount(ingredient_name, ingredient_amount):
+                        ingredient_name = self.convert_to_only_korean(ingredient_name)
+                        ingredient_and_amount_list.append([ingredient_name, ingredient_amount])
                 
                 return ingredient_and_amount_list
                 

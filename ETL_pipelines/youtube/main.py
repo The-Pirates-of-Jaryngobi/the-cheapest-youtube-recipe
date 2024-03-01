@@ -10,7 +10,7 @@ import os
 if __name__ == "__main__":
     
     # 데이터베이스 연결
-    database='raw_data'
+    database='test'
     load_dotenv('../../resources/secret.env')
     conn_info = {
     "host": os.getenv('DB_HOST'),
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     youtubeCrawler.set_webdriver()
     
     youtubePreprocessor = YoutubePreprocessor()
-    youtubePreprocessor.set_gemini_api()
+    youtubePreprocessor.set_gemini_api(0)
     
     youtubeLoader = YoutubeLoader(conn=conn, cursor=cursor)
     
@@ -37,6 +37,7 @@ if __name__ == "__main__":
     
     for n in range(5):
         youtubeCrawler.set_youtube_api(n)
+        # youtubePreprocessor.set_gemini_api(n)
         for i in range(n*100, len(menu_id_and_name_list)): # api 당 최대 100개의 음식명 검색 가능.
             print('*'*80)
             print('menu_id_and_name_list index:', i)
@@ -85,6 +86,7 @@ if __name__ == "__main__":
                     youtube_video_id = youtubeLoader.write_to_youtube_video(
                         channel_id=channel_id, 
                         title=video_title,
+                        url=video_link,
                         thumbnail_src=video_thumbnail,
                         views=video_views_count,
                         thumbsup_count=video_thumbsup_count,
@@ -95,14 +97,15 @@ if __name__ == "__main__":
                         menu_id=menu_id,
                         full_text=video_text
                     )
-                    for k in range(len(ingredient_and_amount_list)):
-                        ingredient_name = ingredient_and_amount_list[k][0]
-                        ingredient_vague = ingredient_and_amount_list[k][1]
-                        youtubeLoader.write_to_ingredient(
-                            recipe_id=recipe_id,
-                            name=ingredient_name,
-                            vague=ingredient_vague
-                        )
+                    if ingredient_and_amount_list:
+                        for k in range(len(ingredient_and_amount_list)):
+                            ingredient_name = ingredient_and_amount_list[k][0]
+                            ingredient_vague = ingredient_and_amount_list[k][1]
+                            youtubeLoader.write_to_ingredient(
+                                recipe_id=recipe_id,
+                                name=ingredient_name,
+                                vague=ingredient_vague
+                            )
                 except Exception as e:
                     print(f'에러 발생 : {e}')
                 

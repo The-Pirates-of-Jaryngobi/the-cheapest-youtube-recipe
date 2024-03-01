@@ -4,7 +4,7 @@ import psycopg2
 class YoutubeLoader:
     def __init__(self, conn, cursor):
         self.conn = conn
-        self.cusror = cursor
+        self.cursor = cursor
     
     def write_to_channel(self, name, url, subscribers_count, img_src):
         try:
@@ -27,6 +27,7 @@ class YoutubeLoader:
             return channel_id
         except (Exception, psycopg2.Error) as error:
             print("Error while writing to channel table:", error)
+            self.conn.rollback()
     
     def write_to_youtube_video(self, channel_id, title, url, thumbnail_src, views, thumbsup_count, uploaded_date):
         try:
@@ -49,6 +50,7 @@ class YoutubeLoader:
             return video_id
         except (Exception, psycopg2.Error) as error:
             print("Error while writing to youtube_video table:", error)
+            self.conn.rollback()
     
     def write_to_recipe(self, youtube_video_id, menu_id, full_text):
         try:
@@ -71,6 +73,7 @@ class YoutubeLoader:
             return recipe_id
         except (Exception, psycopg2.Error) as error:
             print("Error while writing to recipe table:", error)
+            self.conn.rollback()
     
     def write_to_ingredient(self, recipe_id, name, vague):
         try:
@@ -91,4 +94,4 @@ class YoutubeLoader:
             
         except (Exception, psycopg2.Error) as error:
             print("Error while writing to ingredient table:", error)
-    
+            self.conn.rollback()

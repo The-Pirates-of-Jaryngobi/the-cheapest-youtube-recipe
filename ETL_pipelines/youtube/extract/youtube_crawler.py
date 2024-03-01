@@ -34,7 +34,7 @@ class YoutubeCrawler:
         try:
             # Execute query to select all names and ids from the menu table
             cursor.execute("SELECT id, name FROM menu ORDER BY 1 LIMIT 808") # 상위 808개의 레시피 추출.
-            menu_infos = self.cursor.fetchall()
+            menu_infos = cursor.fetchall()
             return menu_infos
         except (Exception, psycopg2.Error) as error:
             print("Error while reading menu info:", error)
