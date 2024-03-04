@@ -80,13 +80,18 @@ def ingredientsDetailResult(response, ingredient_name, ingredient_result):
 
             unit_price_string = li.find('span', class_='unit-price').text.replace(' ', '').replace(',', '')[1:-1] if li.find('span', class_='unit-price') else None
             if unit_price_string != None:
-                measure = re.findall(r'\d+(.*?)당', unit_price_string)
                 numbers = re.findall(r'\d+', unit_price_string)
                 unit_and_unit_price = [int(num) for num in numbers]
-                ingredient_detail.append(unit_and_unit_price[0])
-                ingredient_detail.append(measure[0])
-                ingredient_detail.append(unit_and_unit_price[1])
+                unit = unit_and_unit_price[0]
+                unit_price = unit_and_unit_price[1]
+                measure = re.findall(r'\d+(.*?)당', unit_price_string)[0]
+                gram_price = unit_price / unit if measure in ('g', 'ml') else None
+                ingredient_detail.append(unit)
+                ingredient_detail.append(measure)
+                ingredient_detail.append(unit_price)
+                ingredient_detail.append(gram_price)
             else:
+                ingredient_detail.append(None)
                 ingredient_detail.append(None)
                 ingredient_detail.append(None)
                 ingredient_detail.append(None)
@@ -120,7 +125,7 @@ def ingredientsDetailResult(response, ingredient_name, ingredient_result):
 @task
 def import_ingredient_name_table():
     conn = psycopg2.connect(
-        dbname='raw_data',
+        dbname='service',
         user=Variable.get('user'),
         password=Variable.get('password'),
         host=Variable.get('host'),
@@ -169,7 +174,7 @@ def import_csv():
 @task
 def extract_and_transform(ingredient_name_list):
     ingredient_result = [['ingredient_name', 'rank', 'time_stamp', 'product_title', 'origial_price',
-                          'price','unit','measure' 'unit_price', 'discount_rate', 'badage_rocket', 'review_count', 'url', 'image']]
+                          'price','unit','measure', 'unit_price', 'gram_price', 'discount_rate', 'badage_rocket', 'review_count', 'url', 'image']]
     while len(ingredient_name_list) != 0:
         ingredient_name = ingredient_name_list.pop(0)
         ingredient_response = ingredientNameRequests(ingredient_name)
@@ -226,6 +231,7 @@ def load_to_rds(ingredient_result):
         unit integer,
         measure varchar(255),
         unit_price integer,
+        gram_price float,
         discount_rate varchar(255),
         badage_rocket varchar(255),
         review_count integer,
@@ -245,13 +251,14 @@ def load_to_rds(ingredient_result):
         unit,
         measure,
         unit_price,
+        gram_price,
         discount_rate,
         badage_rocket,
         review_count,
         url,
         image
     ) 
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
     try:
@@ -273,8 +280,8 @@ with DAG(
     schedule='* 5 * * *',
     catchup=False,
     default_args={
-        'retries': 0,
-        'retry_delay': timedelta(minutes=0),
+        'retries': 3,
+        'retry_delay': timedelta(minutes=2),
     }
 ) as dag:
 
