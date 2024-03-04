@@ -10,6 +10,7 @@ import boto3
 import os
 import psycopg2
 import logging
+import re
 
 # 상품명을 기반으로 쿠팡에서 상품 검색 요청을 보내는 함수
 def ingredientNameRequests(ingredient_name):
@@ -54,6 +55,7 @@ def ingredientsDetailResult(response, ingredient_name, ingredient_result):
         if rank_class_name == None and len(rank_number_list) != 0:
             rank = rank_number_list.pop(0)
             rank_class_name = 'number no-' + str(rank)
+            
 
         if li.find('span', class_=rank_class_name) != None:
             ingredient_detail.append(ingredient_name)
@@ -65,6 +67,9 @@ def ingredientsDetailResult(response, ingredient_name, ingredient_result):
             ingredient_detail.append(current_time)
 
             product_title = li.find('div', class_='name').text if li.find('div', class_='name') else None
+            clean_ingredient_name = re.sub(r'\W+', '', ingredient_name)
+            if clean_ingredient_name not in product_title:
+                continue
             ingredient_detail.append(product_title)
 
             origial_price = int(li.find('del', class_='base-price').text.replace(',', '')) if li.find('del', class_='base-price') else None
@@ -73,9 +78,19 @@ def ingredientsDetailResult(response, ingredient_name, ingredient_result):
             price = int(li.find('strong', class_='price-value').text.replace(',', '')) if li.find('strong', class_='price-value') else None
             ingredient_detail.append(price)
 
-            unit_price = li.find('span', class_='unit-price').text.replace(' ', '').replace(',', '')[1:-1] if li.find('span', class_='unit-price') else None
-            ingredient_detail.append(unit_price)
-
+            unit_price_string = li.find('span', class_='unit-price').text.replace(' ', '').replace(',', '')[1:-1] if li.find('span', class_='unit-price') else None
+            if unit_price_string != None:
+                measure = re.findall(r'\d+(.*?)당', unit_price_string)
+                numbers = re.findall(r'\d+', unit_price_string)
+                unit_and_unit_price = [int(num) for num in numbers]
+                ingredient_detail.append(unit_and_unit_price[0])
+                ingredient_detail.append(measure[0])
+                ingredient_detail.append(unit_and_unit_price[1])
+            else:
+                ingredient_detail.append(None)
+                ingredient_detail.append(None)
+                ingredient_detail.append(None)
+                
             discount_rate = li.find('span', class_='instant-discount-rate').text if li.find('span', class_='instant-discount-rate') else None
             ingredient_detail.append(discount_rate)
 
@@ -105,7 +120,7 @@ def ingredientsDetailResult(response, ingredient_name, ingredient_result):
 @task
 def import_ingredient_name_table():
     conn = psycopg2.connect(
-        dbname=Variable.get('dbname'),
+        dbname='raw_data',
         user=Variable.get('user'),
         password=Variable.get('password'),
         host=Variable.get('host'),
@@ -154,7 +169,7 @@ def import_csv():
 @task
 def extract_and_transform(ingredient_name_list):
     ingredient_result = [['ingredient_name', 'rank', 'time_stamp', 'product_title', 'origial_price',
-                          'price', 'unit_price', 'discount_rate', 'badage_rocket', 'review_count', 'url', 'image']]
+                          'price','unit','measure' 'unit_price', 'discount_rate', 'badage_rocket', 'review_count', 'url', 'image']]
     while len(ingredient_name_list) != 0:
         ingredient_name = ingredient_name_list.pop(0)
         ingredient_response = ingredientNameRequests(ingredient_name)
@@ -191,7 +206,7 @@ def load_to_s3(file_name):
 @task
 def load_to_rds(ingredient_result):
     conn = psycopg2.connect(
-        dbname=Variable.get('dbname'),
+        dbname='service',
         user=Variable.get('user'),
         password=Variable.get('password'),
         host=Variable.get('host'),
@@ -208,7 +223,9 @@ def load_to_rds(ingredient_result):
         product_title varchar(255),
         origial_price integer,
         price integer,
-        unit_price varchar(255),
+        unit integer,
+        measure varchar(255),
+        unit_price integer,
         discount_rate varchar(255),
         badage_rocket varchar(255),
         review_count integer,
@@ -225,6 +242,8 @@ def load_to_rds(ingredient_result):
         product_title,
         origial_price,
         price,
+        unit,
+        measure,
         unit_price,
         discount_rate,
         badage_rocket,
@@ -232,7 +251,7 @@ def load_to_rds(ingredient_result):
         url,
         image
     ) 
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
     try:
@@ -251,11 +270,11 @@ def load_to_rds(ingredient_result):
 with DAG(
     dag_id='coupang_crawling',
     start_date=datetime(2024, 3, 1),
-    schedule='10 5 * * *',
+    schedule='* 5 * * *',
     catchup=False,
     default_args={
-        'retries': 3,
-        'retry_delay': timedelta(minutes=1),
+        'retries': 0,
+        'retry_delay': timedelta(minutes=0),
     }
 ) as dag:
 
