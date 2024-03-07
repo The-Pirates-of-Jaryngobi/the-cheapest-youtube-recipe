@@ -15,7 +15,6 @@ import re
 # 상품명을 기반으로 쿠팡에서 상품 검색 요청을 보내는 함수
 def ingredientNameRequests(ingredient_name):
     logger = logging.getLogger('ingredientNameRequests')
-    # logger.setLevel(logging.INFO)
     
     encoded_string = quote(ingredient_name, encoding='utf-8')
     logger.info(f"Ingredient Name: {ingredient_name}, Encoded String: {encoded_string}")
@@ -67,9 +66,6 @@ def ingredientsDetailResult(response, ingredient_name, ingredient_result):
             ingredient_detail.append(current_time)
 
             product_title = li.find('div', class_='name').text if li.find('div', class_='name') else None
-            clean_ingredient_name = re.sub(r'\W+', '', ingredient_name)
-            if clean_ingredient_name not in product_title:
-                continue
             ingredient_detail.append(product_title)
 
             origial_price = int(li.find('del', class_='base-price').text.replace(',', '')) if li.find('del', class_='base-price') else None
@@ -125,7 +121,7 @@ def ingredientsDetailResult(response, ingredient_name, ingredient_result):
 @task
 def import_ingredient_name_table():
     conn = psycopg2.connect(
-        dbname='service',
+        dbname=Variable.get('dbname'),
         user=Variable.get('user'),
         password=Variable.get('password'),
         host=Variable.get('host'),
@@ -211,7 +207,7 @@ def load_to_s3(file_name):
 @task
 def load_to_rds(ingredient_result):
     conn = psycopg2.connect(
-        dbname='service',
+        dbname=Variable.get('dbname'),
         user=Variable.get('user'),
         password=Variable.get('password'),
         host=Variable.get('host'),
