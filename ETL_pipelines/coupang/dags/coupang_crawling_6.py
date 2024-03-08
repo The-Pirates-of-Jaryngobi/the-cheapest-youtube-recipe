@@ -142,7 +142,8 @@ def import_ingredient_name_table():
     ingredient_name_list = set(ingredient_name_list)
     ingredient_name_list = list(ingredient_name_list)
     ingredient_name_list.sort()
-
+    ingredient_name_list = ingredient_name_list[(len(ingredient_name_list)//10)*5:(len(ingredient_name_list)//10)*6]
+    
     return ingredient_name_list
 
 # Airflow DAG 태스크: CSV 파일에서 상품명을 가져오는 함수
@@ -182,7 +183,7 @@ def extract_and_transform(ingredient_name_list):
 @task
 def write_to_csv(ingredient_result):
     current_time = datetime.utcnow()
-    file_name = f'ingredient_result_{current_time.strftime("%Y-%m-%d_%H-%M-%S")}.csv'
+    file_name = f'ingredient_result_6_{current_time.strftime("%Y-%m-%d_%H-%M-%S")}.csv'
     with open(file_name, 'w', newline='') as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerows(ingredient_result)
@@ -216,8 +217,8 @@ def load_to_rds(ingredient_result):
 
     cur = conn.cursor()
     drop_create_table_query = """
-    DROP TABLE IF EXISTS product;
-    CREATE TABLE product (
+    DROP TABLE IF EXISTS product_6;
+    CREATE TABLE product_6 (
         ingredient_name varchar(255),
         rank integer,
         time_stamp varchar(255),
@@ -237,7 +238,7 @@ def load_to_rds(ingredient_result):
     """
 
     insert_query = """
-    INSERT INTO product (
+    INSERT INTO product_6 (
         ingredient_name,
         rank,
         time_stamp,
@@ -271,7 +272,7 @@ def load_to_rds(ingredient_result):
 
 
 with DAG(
-    dag_id='coupang_crawling',
+    dag_id='coupang_crawling_6',
     start_date=datetime(2024, 3, 1),
     schedule='* 5 * * *',
     catchup=False,
