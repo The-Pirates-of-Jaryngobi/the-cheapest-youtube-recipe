@@ -1,5 +1,5 @@
 from extract.youtube_crawler import YoutubeCrawler
-from transfer.youtube_preprocessor import YoutubePreprocessor
+from transform.youtube_preprocessor import YoutubePreprocessor
 from load.youtube_loader import YoutubeLoader
 from dotenv import load_dotenv
 import time
