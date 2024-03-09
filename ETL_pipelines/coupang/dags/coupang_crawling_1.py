@@ -11,6 +11,7 @@ import os
 import psycopg2
 import logging
 import re
+import time
 
 # 상품명을 기반으로 쿠팡에서 상품 검색 요청을 보내는 함수
 def ingredientNameRequests(ingredient_name):
@@ -25,13 +26,23 @@ def ingredientNameRequests(ingredient_name):
         "Accept-Language": "ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3"
     }
 
-    try:
-        response = requests.get(url, headers=headers)
-    except Exception as e:
-        logger.error(f"Error occurred while making a request of ingredient_name: {e}")
-        response = None
+    retries = 3
+    delay = 5
 
-    return response
+    for attempt in range(retries):
+        try:
+            response = requests.get(url, headers=headers)
+            if response.status_code == 200:
+                return response
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error occurred while making a request of ingredient_name: {e}")
+        
+        if attempt < retries - 1:
+            logger.info(f"Retrying in {delay} seconds...")
+            time.sleep(delay)
+
+    logger.error("Max retries reached. Could not retrieve data.")
+    return None
 
 # 쿠팡에서 받은 응답을 파싱하여 상품 세부 정보를 추출하는 함수
 def ingredientsDetailResult(response, ingredient_name, ingredient_result):
