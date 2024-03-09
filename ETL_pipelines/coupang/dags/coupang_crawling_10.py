@@ -104,7 +104,12 @@ def ingredientsDetailResult(response, ingredient_name, ingredient_result):
             url = 'https://www.coupang.com'+li.find('a', href=True)['href'] if li.find('a', href=True) else None
             ingredient_detail.append(url)
 
-            image = 'https:' + li.find('img', class_='search-product-wrap-img')['src'] if li.find('img', class_='search-product-wrap-img') else None
+            if li.find('img', class_='search-product-wrap-img').get('data-img-src') is not None:
+                image = 'https:' + li.find('img', class_='search-product-wrap-img').get('data-img-src')
+            elif li.find('img', class_='search-product-wrap-img').get('src') is not None:
+                image = 'https:' + li.find('img', class_='search-product-wrap-img').get('src')
+            else:
+                image = None
             ingredient_detail.append(image)
 
             ingredient_result.append(ingredient_detail)
